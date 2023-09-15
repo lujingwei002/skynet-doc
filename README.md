@@ -132,16 +132,113 @@
 
 ### co的状态
 
-- `"SUSPEND"`
-  - 消息处理函数处理完消息，回到协程池时，会返回`"SUSPEND"`状态
-  - `skynet.sleep`会返回`"SUSPEND"`状态
-  - `skynet.wait`会返回`"SUSPEND"`状态
-  - `skynet.yield`会返回`"SUSPEND"`状态
-  - `skynet.call`会返回`"SUSPEND"`状态
-- `"suspend()"`函数，用于判断co的返回状态，这个函数一般在哪里调用？
-  - 消息得函数触发时
-    - 寻找一个可以的co或者新建一个，然后交给他处理，suspend等待他的返回状态。
-    - 如果是resonse,则查询之前的消息处理函数的co,然后唤醒他，再suspend等待他的返回状态。
+co的类型， 除主协程外，都称为工作协程
+
+- 主协程，即调用dispatch_message的协程
+
+- 消息处理协程
+
+- fork协程
+
+- timeout创建的协程
+
+  - 时间到了由TIMEOUT response唤醒
+
+    
+
+工作协程执行结束时，会进入池中，等待再被分配任务。
+
+
+
+主协程的流程图
+
+```mermaid
+stateDiagram
+[*]-->raw_dispatch_message
+state raw_dispatch_message {
+[*]-->[*]: response消息
+[*]-->创建co: 其他消息
+创建co-->[*]
+}
+raw_dispatch_message-->等待co
+fork_queue-->等待co: 
+
+等待co-->wakeup_queue: "SUSPEND"
+等待co-->关闭co: "QUIT"
+wakeup_queue-->fork_queue: wakeup_queue为空
+wakeup_queue-->等待co
+关闭co-->fork_queue
+
+
+fork_queue-->[*]:fork_queue为空
+```
+
+
+
+工作协程流程图
+
+```mermaid
+stateDiagram
+[*]-->执行任务
+执行任务-->任务完成
+任务完成-->放回池中
+放回池中-->暂停:返回"SUSPEND"
+暂停-->执行任务:被分配新的任务
+执行任务-->[*]:返回"QUIT"
+```
+
+
+
+消息处理流程图
+
+```mermaid
+stateDiagram
+
+
+[*]-->response消息
+state response消息 {
+state 状态选择 <<choice>>
+[*]-->状态选择
+状态选择-->删除session状态: co为"BREAK"
+状态选择-->打印unknown_response: co为nil
+打印unknown_response-->[*]
+状态选择-->唤醒co:session的co存在
+唤醒co-->[*]
+删除session状态-->[*]
+}
+
+[*]-->没注册的消息
+state 没注册的消息 {
+state 状态选择1 <<choice>>
+[*]-->状态选择1
+状态选择1-->继承上层服务的tracetag: 消息类型是PTYPE_TRACE
+状态选择1-->回复TYPE_ERROR: session非空
+状态选择1-->打印unknown_request: session为空
+回复TYPE_ERROR-->[*]
+继承上层服务的tracetag-->[*]
+打印unknown_request-->[*]
+}
+
+[*]-->没有消息处理函数
+state 没有消息处理函数 {
+state 状态选择2 <<choice>>
+[*]-->状态选择2
+状态选择2-->回复PTYPE_ERROR: session非0
+状态选择2-->打印unknown_request1: session为0
+打印unknown_request1-->[*]
+PTYPE_ERROR-->[*]
+}
+
+[*]-->有消息处理函数
+```
+
+
+
+
+
+
+
+
 
 ### skynet.register_protocol(class {id integer, name string, ...})
 
