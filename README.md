@@ -173,7 +173,7 @@
 
 - 修改`service_snlua.c`中snlua结构中的mem_limit
 
-  ```c
+```c
   struct snlua {
   	lua_State * L;
   	struct skynet_context * ctx;
@@ -216,9 +216,6 @@
   	return l;
   }
 ```
-
-  
-
 
 
 ### skynet.term(service handle)
