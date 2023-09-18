@@ -48,15 +48,37 @@
 
 - type dispatch_message_func func(prototype, msg, sz, session, source)
 
-## loader
 
-- 设置`SERVICE_NAME`等于当前服务文件名
-- 设置`SERVICE_PATH`
+
+## <span id = "lualib.loader">loader</span>
+
+- 设置`SERVICE_NAME`为`args[1]`
+- 设置`SERVICE_PATH`为`SERVER_NAME`所在的目录
+- 如果是用`?`匹配的话，添加`SERVICE_PATH.."?.lua"`目录到`package.path`
 - 执行`preload`
+- 加载文件匹配到的文件`SERVICE_NAME`
 
 
 
-## skynet.snax.interface
+## <span id="lualib.md5">md5</span>
+
+### export
+
+#### sumhexa
+
+sumhexa(k): string
+
+
+
+#### hmacmd5
+
+hmacmd5(data, key): string
+
+
+
+
+
+## snax.interface
 
 ### usecase
 
@@ -699,35 +721,57 @@ PTYPE_ERROR-->[*]
 
 
 
-## <span id="skynet.sprotoparser">skynet.sprotoparser</span>
+
+
+## <span id="lualib.sprotoparser">sprotoparser</span>
+
+### use case
+
+- 将文本格式的协议描述文件`.sproto`解析成一个二进制的格式
+
+
 
 ### type
 
-#### <span id="skynet.sprotoparser.SprotoBin">SprotoBin</span>
+#### <span id="lualib.sprotoparser.SprotoBin">SprotoBin</span>
+
+
 
 ### export
 
-#### sparser.dump(str [SprotoBin](#skynet.sprotoparser.SprotoBin))
+#### sparser.dump(str [SprotoBin](#lualib.sprotoparser.SprotoBin))
 
-#### sparser.parse(text string, name string|nil): (bin [SprotoBin](#skynet.sprotoparser.SprotoBin))
+
+
+#### sparser.parse(text string, name string|nil): (bin [SprotoBin](#lualib.sprotoparser.SprotoBin))
 
 - 参数
   - text .sproto文件的文本
   - name 名字, 只是用来日志输出
 
-## skynet.sprotoloader
+
+
+## sprotoloader
+
+### usecase
+
+- 将协议保存在内存中，使各个服务可以共享
+
+
 
 ### export
 
 #### loader.register(filename string, index integer): void
 
-- 解析协议并保存在槽中
+- 解析协议并保存在指定的槽`index`中
 
 - 参数
   - filename 文件名
   - index 槽下标 从0开始
+  
+  
 
-#### loader.load(index integer): (sproto [Sproto](#skynet.sproto.Sproto))
+#### loader.load(index integer): (sproto [Sproto](#lualib.sproto.Sproto))
 
 - 从槽中加载sproto
 
@@ -735,8 +779,10 @@ PTYPE_ERROR-->[*]
   - index 槽下标, 从0开始
 - 返回
   - sproto no gc版本的sproto
+  
+  
 
-#### loader.save(bin [SprotoBin](#skynet.sprotoparser.SprotoBin), index integer): void
+#### loader.save(bin [SprotoBin](#lualib.sprotoparser.SprotoBin), index integer): void
 
 - 将sproto保存在槽中
 
@@ -744,19 +790,27 @@ PTYPE_ERROR-->[*]
   - bin [skynet.sprotoparser](#skynet.sprotoparser)解析出来的协议二进制内容
   - index 槽下标 从0开始
 
-## skynet.sproto
+
+
+
+
+## sproto
 
 ### type
 
-#### <span id="skynet.sproto.SprotoType">SprotoType</span>
+
+
+#### <span id="lualib.sproto.SprotoType">SprotoType</span>
 
 - struct
   - request
   - response
   - name string
   - tag integer
+  
+  
 
-#### <span id="skynet.sproto.SprotoHost">SprotoHost</span>
+#### <span id="lualib.sproto.SprotoHost">SprotoHost</span>
 ##### host:dispatch((data ptr, sz integer)|(data string))
   - 处理消息
     - request
@@ -765,13 +819,18 @@ PTYPE_ERROR-->[*]
     - response
       - 有记录response, return "RESPONSE", session, nil, ud
       - 无记录, return "RESPONSE", session, result, udjj
-##### host:attach(sp [Sproto](#skynet.sproto.Sproto)): function(name string, args, session, ud)
+      
+      
+##### host:attach(sp [Sproto](#lualib.sproto.Sproto)): function(name string, args, session, ud)
   - 返回function(name, args, session, ud)
   - 根据协议`name`编码`args`
   - 设置`session`, `host:dispatch`时回调
-#### <span id="skynet.sproto.Sproto">Sproto</span>
 
-##### sproto:host(packagename string|nil): (host [SprotoHost](#skynet.sproto.SprotoHost))
+
+
+#### <span id="lualib.sproto.Sproto">Sproto</span>
+
+##### sproto:host(packagename string|nil): (host [SprotoHost](#lualib.sproto.SprotoHost))
 
 - 创建一个host对象，用于request, response协议
 
@@ -823,16 +882,23 @@ PTYPE_ERROR-->[*]
 
 
 ### export
-#### sproto.new(bin):(sproto [Sproto](#skynet.sproto.Sproto))
+#### sproto.new(bin [SprotoBin](#lualib.sprotoparser.SprotoBin)):(sproto [Sproto](#skynet.sproto.Sproto))
   - 创建协议
   - 参数
     - `bin` 用`sprotoparser.parse`后的
-#### sproto.sharenew(cobj):(sproto [Sproto](#skynet.sproto.Sproto))
+    
+    
+#### sproto.sharenew(cobj [sproto](#lualib-src.sproto.sproto)):(sproto [Sproto](#skynet.sproto.Sproto))
   - 和`sproto.new`类似，但没有`gc`,`gc`就是在lua回收时自动将`c`里的内存结构释放
+
+
+
 #### sproto.parse(text string):(sproto [Sproto](#skynet.sproto.Sproto))
   - 从`.sproto`文件创建
   - 参数
     - text .sproto文件内容
+
+
 
 
 
@@ -1312,6 +1378,220 @@ end
 
 
 
+
+
+## <span id="lualib.http.httpc">http.httpc</span>
+
+### 重点
+
+- http client
+
+- 支持`https`, 参考[http.tlshelper](#luasrc.http.tlshelper)
+- 没有`keep_alive`，每次新建一个连接
+- 消息头最长8192字节
+
+### export
+
+### post
+
+post(host string, url string, form table, recvheader): (statuscode integer, body string)
+
+- 发送`application/x-www-form-urlencoded`格式的数据，如果想发送`json`的，请用[httpc.request](#luasrc.http.httpc.request)
+- 参数
+  - 参考  [httpc.request](#luasrc.http.httpc.request)
+
+
+
+
+
+### get
+
+get(hostname string, url string, recvheader, header, content): (statuscode integer, body string)
+
+- 参数
+  - 参考 [httpc.request](#luasrc.http.httpc.request)
+
+
+
+
+
+### request_stream
+
+
+
+
+
+### head(hostname string, url string, recvheader, header, content): (statuscode integer)
+
+- 参数
+  - 参考 [httpc.request](#luasrc.http.httpc.request)
+- afaf
+
+
+
+
+
+### <span id="luasrc.http.httpc.request">request</span>
+
+request(method "GET"|"POST", hostname string, url string, recvheader, header, content): (statuscode integer, body string)
+
+- 参数
+
+  - hostname string 
+
+    - http://www.baidu.com
+    - https://www.baidu.com:123
+
+  - url string
+
+    - /activity/add
+    - /
+    - `""`
+
+  - header 要发送的header
+
+  - 要发送的内容
+
+  - recvheader 接收到的header
+
+    ```lua
+    {
+        k1 = "v1",
+        k2 = {"v21", "v22"}
+    }
+    ```
+
+    k1, k2都已经转成小写
+
+  - afaf
+
+- afaf
+
+
+
+
+
+## http.httpd
+
+### 重点
+
+- 提供解析request和写response功能
+- 支付`chunked`
+
+### export
+
+#### read_request
+
+read_request(readfunc function(), bodylimit integer): ((code integer, url string, method string, header table, body string)|(nil, code integer))
+
+- 解析request
+
+
+
+#### write_response
+
+write(writefunc function()|string, statuscode integer, bodyfunc, header)
+
+
+
+
+
+## <span id="lualib.http.url">http.url</span>
+
+### export
+
+#### parse
+
+parse(u string): (path string, query string)
+
+- 解析url
+
+  ```lua
+  http://www.baidu.com/activity/add?a=b
+  拆开后 
+  path=http://www.baidu.com/activity/add
+  query=a=b
+  ```
+
+  
+
+#### parse_query
+
+parse_query(q): table
+
+- 解析query string
+- 如果key重复，后面的会覆盖前面的
+
+
+
+## http.tlshelper
+
+### 重点
+
+- 使用ssl的bio实现，参数c文件
+
+
+
+
+
+## <span id="luasrc.http.websocket">http.websocket</span>
+
+### 重点
+
+- 支持`ws`和`wss`
+
+### type
+
+#### <span id="luasrc.http.websocket.websocket_handle">websocket_handle</span>
+
+- connect
+- handshake
+- message
+- ping
+- pong
+- close
+- error
+
+
+
+
+
+### export
+
+#### accept
+
+accept(socket_id integer, handle [websocket_handle](#luasrc.http.websocket.websocket_handle), protocol, addr, options): (true)|(false, err string)
+
+
+
+#### connect
+
+#### read
+
+#### write
+
+#### ping
+
+#### addrinfo
+
+
+
+#### real_ip
+
+read_ip(): string
+
+- `handshake`时消息头的中`x-real-ip`
+
+
+
+#### close
+
+#### is_close
+
+
+
+
+
 # service-src
 
 ## databuffer
@@ -1575,7 +1855,7 @@ struct hashid {
 
   
 
-## <span id=".launcher">.launcher</span>
+## <span id="service.launcher">.launcher</span>
 
 - 启动服务, 可以是`snlua`服务，也可以是c服务
 
@@ -1583,7 +1863,7 @@ struct hashid {
 
 
 
-#### LAUNCHOK
+#### <span id="service.launcher.LAUNCHOK">LAUNCHOK</span>
 
 
 **LAUNCHOK():void**
@@ -1610,6 +1890,10 @@ struct hashid {
 
 
 - 启动服务, 直到收到LAUNCHOK就会返回`true`
+
+
+
+#### <span id="service.launcher.LOGLAUNCH">LOGLAUNCH</span>
 
 
 
@@ -2239,34 +2523,116 @@ end
 
 ## <span id="lualib-src.lua-netpack">lua-netpack</span>
 
-- 分包功能，包的格式如下
+### 重点
 
-- 一个服务有一个独立的`queue`,`queue`中包含全部有效的`socket`的消息列队
+- 每个服务有一个`queue`对象，`qeueu`里保存有每个`socket`的数据包队列和和未完成的消息头数据
+- 消息列队每次扩展1024长度。
 
-  ```mermaid
-  classDiagram
-  class pack
-  pack : int16 header 
-  pack : binary content 
-  ```
 
-  
+
+### 源码分析
+
+- struct queue
+
+  - ```c
+    struct queue {
+    	int cap;
+    	int head;
+    	int tail;
+    	struct uncomplete * hash[HASHSIZE];
+    	struct netpack queue[QUEUESIZE];
+    };
+    ```
+
+  - `queue`由lua_newuserdatauv申请的内存，因为`queue`的内存由lua负责释放。
+
+    lualib-src/lua-netpack.c
+
+    ```c
+    static struct queue *
+    get_queue(lua_State *L) {
+    	struct queue *q = lua_touserdata(L,1);
+    	if (q == NULL) {
+    		q = lua_newuserdatauv(L, sizeof(struct queue), 0);
+    		q->cap = QUEUESIZE;
+    		q->head = 0;
+    		q->tail = 0;
+    		int i;
+    		for (i=0;i<HASHSIZE;i++) {
+    			q->hash[i] = NULL;
+    		}
+    		lua_replace(L, 1);
+    	}
+    	return q;
+    }
+    ```
+
+    但`queue`里的内容是手动释放的，包括里面的`uncomplete`和`netpack`里的buffer
+
+    lualib/snax/gateserver.lua
+
+    ```lua
+    local CMD = setmetatable({}, { __gc = function() netpack.clear(queue) end })
+    ```
+
+    ```c
+    static int
+    lclear(lua_State *L) {
+    	struct queue * q = lua_touserdata(L, 1);
+    	if (q == NULL) {
+    		return 0;
+    	}
+    	int i;
+    	for (i=0;i<HASHSIZE;i++) {
+    		clear_list(q->hash[i]);
+    		q->hash[i] = NULL;
+    	}
+    	if (q->head > q->tail) {
+    		q->tail += q->cap;
+    	}
+    	for (i=q->head;i<q->tail;i++) {
+    		struct netpack *np = &q->queue[i % q->cap];
+    		skynet_free(np->buffer);
+    	}
+    	q->head = q->tail = 0;
+    
+    	return 0;
+    }
+    
+    ```
+
+    
+
+  - 一个服务有一个独立的`queue`,`queue`中包含全部有效的`socket`的消息列队
+
+  - 已经拆出来的包放在`struct netpack queue`中，每次扩展QUEUESIZE，即1024.扩展时会重新申请过一个`queue`
+
+    ```c
+    static void
+    expand_queue(lua_State *L, struct queue *q) {
+    	struct queue *nq = lua_newuserdatauv(L, sizeof(struct queue) + q->cap * sizeof(struct netpack), 0);
+    	nq->cap = q->cap + QUEUESIZE;
+    	nq->head = 0;
+    	nq->tail = q->cap;
+    	memcpy(nq->hash, q->hash, sizeof(nq->hash));
+    	memset(q->hash, 0, sizeof(q->hash));
+    	int i;
+    	for (i=0;i<q->cap;i++) {
+    		int idx = (q->head + i) % q->cap;
+    		nq->queue[i] = q->queue[idx];
+    	}
+    	q->head = q->tail = 0;
+    	lua_replace(L,1);
+    }
+    ```
 
 - afaf
 
----
+  
+  
+  
 
-title: aaa
 
----
-
-```mermaid
-classDiagram
-class netpack
-class uncomplete
-class queue
-
-```
 
 ### type
 
@@ -2493,7 +2859,7 @@ reader()
 
 # skynet-src
 
-### skynet_module
+## <span id="skynet-src.skynet_module">skynet_module</span>
 
 ```c
 // 函数原型
@@ -2522,56 +2888,285 @@ struct skynet_module {
 
 
 
+## skynet_log
+
+### use case
+
+- 文件输出在`env.logpath`中，文件名为`${env.logpath}/${context->handle}.log`
+
+- 打开方式
+  
+  - 默认是关闭状态
+  
+  - [debug_console](#service.debug_console)的log命令
+  - [.launcher](#service.launcher)的[LOGLAUNCH](#service.launcher.LOGLAUNCH)
+  
+- 关闭方式
+
+  - [debug_console](#service.debug_console)的logoff命令
+
+- 打开后，每次dispatch_message都会将消息输出到日志文件中
+
+  ```c
+  static void
+  dispatch_message(struct skynet_context *ctx, struct skynet_message *msg) {
+  	assert(ctx->init);
+  	CHECKCALLING_BEGIN(ctx)
+  	pthread_setspecific(G_NODE.handle_key, (void *)(uintptr_t)(ctx->handle));
+  	int type = msg->sz >> MESSAGE_TYPE_SHIFT;
+  	size_t sz = msg->sz & MESSAGE_TYPE_MASK;
+  	FILE *f = (FILE *)ATOM_LOAD(&ctx->logfile);
+  	if (f) {
+  		skynet_log_output(f, msg->source, type, msg->session, msg->data, sz);
+  	}
+  	++ctx->message_count;
+  	int reserve_msg;
+  	if (ctx->profile) {
+  		ctx->cpu_start = skynet_thread_time();
+  		reserve_msg = ctx->cb(ctx, ctx->cb_ud, type, msg->session, msg->source, msg->data, sz);
+  		uint64_t cost_time = skynet_thread_time() - ctx->cpu_start;
+  		ctx->cpu_cost += cost_time;
+  	} else {
+  		reserve_msg = ctx->cb(ctx, ctx->cb_ud, type, msg->session, msg->source, msg->data, sz);
+  	}
+  	if (!reserve_msg) {
+  		skynet_free(msg->data);
+  	}
+  	CHECKCALLING_END(ctx)
+  }
+  ```
 
 
-# lualib
 
-## skynet.lua
+## <span id="skynet-src.skynet_buffer">skynet_buffer</span>
 
-```lua
+### 源码分析
 
-local function co_create(f)
-	local co = tremove(coroutine_pool)
-	if co == nil then
-		co = coroutine_create(function(...)
-			f(...)
-			while true do
-				local session = session_coroutine_id[co]
-				if session and session ~= 0 then
-					local source = debug.getinfo(f,"S")
-					skynet.error(string.format("Maybe forgot response session %s from %s : %s:%d",
-						session,
-						skynet.address(session_coroutine_address[co]),
-						source.source, source.linedefined))
-				end
-				-- coroutine exit
-				local tag = session_coroutine_tracetag[co]
-				if tag ~= nil then
-					if tag then c.trace(tag, "end")	end
-					session_coroutine_tracetag[co] = nil
-				end
-				local address = session_coroutine_address[co]
-				if address then
-					session_coroutine_id[co] = nil
-					session_coroutine_address[co] = nil
-				end
-				-- recycle co into pool
-				f = nil
-				coroutine_pool[#coroutine_pool+1] = co
-				-- recv new main function f
-                -- 暂停在这里， 等待新的任务
-				f = coroutine_yield "SUSPEND"
-				f(coroutine_yield())
-			end
-		end)
-	else
-		-- pass the main function f to coroutine, and restore running thread
-		local running = running_thread
-        -- 唤醒工作协程，将f给他，然后他就会马上yield, 看上面代码。
-		coroutine_resume(co, f)
-		running_thread = running
-	end
-	return co
-end
-```
+- 结构
 
+  ```c
+  
+  #define SOCKET_BUFFER_MEMORY 0
+  #define SOCKET_BUFFER_OBJECT 1
+  #define SOCKET_BUFFER_RAWPOINTER 2
+  
+  struct socket_sendbuffer {
+  	int id;
+  	int type;
+  	const void *buffer;
+  	size_t sz;
+  };
+  ```
+
+  
+
+- 3种类型的区别
+
+  - 释放
+
+    ```c
+    static void
+    free_buffer(struct socket_server *ss, struct socket_sendbuffer *buf) {
+    	void *buffer = (void *)buf->buffer;
+    	switch (buf->type) {
+    	case SOCKET_BUFFER_MEMORY:
+    		FREE(buffer);
+    		break;
+    	case SOCKET_BUFFER_OBJECT:
+    		ss->soi.free(buffer);
+    		break;
+    	case SOCKET_BUFFER_RAWPOINTER:
+    		break;
+    	}
+    }
+    ```
+
+    
+
+  - 复制
+
+    ```c
+    static const void *
+    clone_buffer(struct socket_sendbuffer *buf, size_t *sz) {
+    	switch (buf->type) {
+    	case SOCKET_BUFFER_MEMORY:
+    		*sz = buf->sz;
+    		return buf->buffer;
+    	case SOCKET_BUFFER_OBJECT:
+    		*sz = USEROBJECT;
+    		return buf->buffer;
+    	case SOCKET_BUFFER_RAWPOINTER:
+    		// It's a raw pointer, we need make a copy
+    		*sz = buf->sz;
+    		void * tmp = MALLOC(*sz);
+    		memcpy(tmp, buf->buffer, *sz);
+    		return tmp;
+    	}
+    	// never get here
+    	*sz = 0;
+    	return NULL;
+    }
+    ```
+
+    
+
+  - `SOCKET_BUFFER_RAWPOINTER`
+
+    - 来自lua的`LUA_`USERDATA`
+    - 来自lua的`string`
+    - 内存由lua负责管理，c层不需要释放
+
+  - `SOCKET_BUFFER_MEMORY`
+
+    - 来自lua的`table`，将`table`转成buffer
+    - 来自lua的`LUA_LIGHTUSERDATA`, 即`msg,` `sz`
+    - 内存由c负责释放
+
+  - `SOCKET_BUFFER_OBJECT`
+
+    - 参考 socket_server_userobject 函数， 设置自定义`userobject`
+
+### use case
+
+- [socket_server](#skynet-src.socket_server)用到
+
+  ```c
+  int socket_server_send(struct socket_server *, struct socket_sendbuffer *buffer);
+  int socket_server_send_lowpriority(struct socket_server *, struct socket_sendbuffer *buffer);
+  int socket_server_udp_send(struct socket_server *, const struct socket_udp_address *, struct socket_sendbuffer *buffer);
+  
+  ```
+
+  
+
+- fff
+
+## <span id="skynet-src.skynet_monitor">skynet_monitor</span>
+
+### 源码分析
+
+- 每个消息分发线程都有一个monitor
+
+  ```c
+  static void
+  start(int thread) {
+  	pthread_t pid[thread+3];
+  
+  	struct monitor *m = skynet_malloc(sizeof(*m));
+  	memset(m, 0, sizeof(*m));
+  	m->count = thread;
+  	m->sleep = 0;
+  
+  	m->m = skynet_malloc(thread * sizeof(struct skynet_monitor *));
+  	int i;
+  	for (i=0;i<thread;i++) {
+  		m->m[i] = skynet_monitor_new();
+  	}
+      ...
+  ```
+
+- 原理
+
+  - 处理消息前标记`source`和`destination`，即源和目标的服务地址。处理完后重置`source`, `destination`为0
+
+    ```c
+    struct message_queue * 
+    skynet_context_message_dispatch(struct skynet_monitor *sm, struct message_queue *q, int weight) {
+    	if (q == NULL) {
+    		q = skynet_globalmq_pop();
+    		if (q==NULL)
+    			return NULL;
+    	}
+    
+    	uint32_t handle = skynet_mq_handle(q);
+    
+    	struct skynet_context * ctx = skynet_handle_grab(handle);
+    	if (ctx == NULL) {
+    		struct drop_t d = { handle };
+    		skynet_mq_release(q, drop_message, &d);
+    		return skynet_globalmq_pop();
+    	}
+    
+    	int i,n=1;
+    	struct skynet_message msg;
+    
+    	for (i=0;i<n;i++) {
+    		if (skynet_mq_pop(q,&msg)) {
+    			skynet_context_release(ctx);
+    			return skynet_globalmq_pop();
+    		} else if (i==0 && weight >= 0) {
+    			n = skynet_mq_length(q);
+    			n >>= weight;
+    		}
+    		int overload = skynet_mq_overload(q);
+    		if (overload) {
+    			skynet_error(ctx, "May overload, message queue length = %d", overload);
+    		}
+    
+    		skynet_monitor_trigger(sm, msg.source , handle);
+    
+    		if (ctx->cb == NULL) {
+    			skynet_free(msg.data);
+    		} else {
+    			dispatch_message(ctx, &msg);
+    		}
+    
+    		skynet_monitor_trigger(sm, 0,0);
+    	}
+    ```
+
+  - `monitor`线程定时调用`check`检查`version`是否相等，如果不相等，即消息处理线程一直在处理`trigger`的消息。有可能`block`了
+
+    ```c
+    void 
+    skynet_monitor_trigger(struct skynet_monitor *sm, uint32_t source, uint32_t destination) {
+    	sm->source = source;
+    	sm->destination = destination;
+    	ATOM_FINC(&sm->version);
+    }
+    
+    void 
+    skynet_monitor_check(struct skynet_monitor *sm) {
+    	if (sm->version == sm->check_version) {
+    		if (sm->destination) {
+    			skynet_context_endless(sm->destination);
+    			skynet_error(NULL, "A message from [ :%08x ] to [ :%08x ] maybe in an endless loop (version = %d)", sm->source , sm->destination, sm->version);
+    		}
+    	} else {
+    		sm->check_version = sm->version;
+    	}
+    }
+    ```
+
+    
+
+  ## <span id="skynet-src.socket_info">socket_info</span>
+
+  ### 源码分析
+
+  - 调用方式 `socket.info()`
+
+  - 结构
+
+    ```c
+    struct socket_info {
+    	int id;
+    	int type;
+    	uint64_t opaque;
+        // 已读字符数
+    	uint64_t read;
+        // 已经写的字节数
+    	uint64_t write;
+    	uint64_t rtime;
+    	uint64_t wtime;
+    	int64_t wbuffer;
+        // 是否注册可读事件
+    	uint8_t reading;
+        // 是否注册可写事件
+    	uint8_t writing;
+    	char name[128];
+    	struct socket_info *next;
+    };
+    ```
+
+    
