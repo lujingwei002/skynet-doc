@@ -1731,7 +1731,7 @@ struct hashid {
 
 ## snlua
 
-## logger
+## <span id="service-src.logger">logger</span>
 
 - 用于输出日志
 - 启动参数
@@ -1747,7 +1747,7 @@ struct hashid {
 
 
 
-## <span id="harbor">habor</span>
+## <span id="service-src.harbor">habor</span>
 
 - `slave`指定`snlua cslave`
 - `habor_id`是自身的节点id
@@ -2288,6 +2288,69 @@ end
 #### system.init
 
 - 调用handler的初始化函数
+
+
+
+## clusterproxy
+
+- [clustersender](.service.clustersender)的代理，转收到的请求转发到sender
+
+```lua
+local proxy = cluster.proxy "db@sdb"
+-- db是节点
+-- sdb是服务
+skynet.call(proxy, "lua", "SET", ...)
+```
+
+
+
+### data
+
+- node string
+- adderss [handle](.handle)
+
+### proto "snax"
+
+### proto "lua"
+
+### proto "response"
+
+
+
+## cluster agent
+
+- 由[clusterd][.service.clusterd]启动的agent, 处理gate转发来的client协议
+- 具有分包功能
+- 收到[clustersender](.service.clustersender)发来的请求，转发来服务，再返回
+
+### proto "lua"
+
+#### namechange():void
+
+- 刷新本地的name缓存
+
+
+
+## clustersender
+
+- 使用socketchannel处理网络通信
+- 有重连功能
+- 可以切换节点地址
+- 有分包功能
+
+### export
+
+### proto "lua"
+
+#### changenode
+
+changenode(host string|false, port integer): nil
+
+### req
+
+### push
+
+
 
 
 
@@ -3323,4 +3386,229 @@ struct skynet_module {
 ## socket_server
 
 ### 源码分析
+
+-  
+
+- | -              | -           | -    |
+  | -------------- | ----------- | ---- |
+  | SOCKET_DATA    |             |      |
+  | SOCKET_CLOSE   |             |      |
+  | SOCKET_OPEN    | SOCKET_DATA |      |
+  | SOCKET_ERR     |             |      |
+  | SOCKET_ACCEPT  |             |      |
+  | SOCKET_UDP     |             |      |
+  | SOCKET_WARNING |             |      |
+
+- 
+
+
+
+## malloc_hook
+
+### use case
+
+- 使用`jemalloc`库管理内存
+
+- 每次用`skynet_malloc`申请内存时都在尾部加上当前`context`的[handle](#handle)
+
+-  只记录前面`0x10000`个`context`的内存使用情况 
+
+  
+
+### export
+
+#### skynet_debug_memory
+
+void skynet_debug_money(const char* info)
+
+- 打印当前[skynet_context](#skynet-src.skynet_server.skynet_context)的使用的内存大小
+
+
+
+#### malloc_current_money
+
+size_t malloc_current_memory(void)
+
+- 当前[skynet_context](#skynet-src.skynet_server.skynet_context)的使用的内存大小
+
+
+
+#### dump_mem_lua
+
+int dump_mem_lua(lua_State* L)
+
+```lua
+{
+    [handle] = allocated
+}
+```
+
+
+
+#### skynet_lalloc
+
+void *skynet_lalloc(void *ptr, size_t osize,  size_t nsize)
+
+- 使用原始的内存分配函数申请内存
+
+
+
+#### skynet_strdup
+
+char* *skynet_strdup(const char* *str)
+
+- 拷贝
+
+
+
+#### dump_c_mem()
+
+void dump_c_mem()
+
+
+
+
+
+#### malloc_used_memory
+
+size_t malloc_used_memory(void)
+
+
+
+#### malloc_memory_block
+
+size_t malloc_memory_block(void)
+
+
+
+#### skynet_posix_memalign
+
+int skynet_posix_memalign(void **memptr, size_t alignment, size_t size)
+
+
+
+
+#### skynet_aligned_alloc
+
+void* skynet_aligned_alloc(size_t alignment, size_t size)
+
+
+
+#### skynet_memalign
+
+void* skynet_memalign(size_t alignment, size_t size)
+
+
+
+#### skynet_calloc
+
+void* skynet_calloc(size_t memb, size_t size)
+
+
+
+#### skynet_free
+
+void skynet_free(void *ptr)
+
+
+
+#### skynet_relloc(void* ptr, size_t size)
+
+void* skynet_realloc(void* ptr, size_t size)
+
+
+
+#### skynet_malloc
+
+void* skynet_malloc(size_t size)
+
+
+
+#### mallctl_opt
+
+int mallctl_opt(const char* name, int *newval)
+
+
+
+#### mallctl_int64
+
+size_t mallctl_int64(const char* name, size_t *newval)
+
+
+
+#### mallctl_cmd
+
+int mallctl_cmd(const char* name)
+
+
+
+#### mallctl_bool
+
+bool mallctl_bool(const char* name, bool* newval)
+
+
+
+#### memory_info_dump
+
+void memory_info_dump(const char* opts)
+
+
+
+## rwlock
+
+### use case
+
+- 用原子操作实现的自旋锁，读写锁
+
+
+
+
+
+## skynet_error
+
+### use case
+
+- [logger](#service-src.logger)服务的interface
+- 将日志发送到[logger](#service-src.logger)服务
+
+
+
+## skynet_harbor
+
+### use case
+
+- [harbor](#service-src.harbor)服务的interface
+- 将消息转发给[harbor](#service-src.harbor)
+
+
+
+
+
+## skynet_main
+
+### use case
+
+- 创建线程局部变量`G_NODE.handle_key`
+
+  ```c
+  
+  void 
+  skynet_globalinit(void) {
+  	ATOM_INIT(&G_NODE.total , 0);
+  	G_NODE.monitor_exit = 0;
+  	G_NODE.init = 1;
+  	if (pthread_key_create(&G_NODE.handle_key, NULL)) {
+  		fprintf(stderr, "pthread_key_create failed");
+  		exit(1);
+  	}
+  	// set mainthread's key
+  	skynet_initthread(THREAD_MAIN);
+  }
+  ```
+
+  - 开始是等于线程类型id,后面就是当前正在处理消息的`context`的[handle](#handle)
+
+- 读取解析配置文件
+
+- 设置环境变量
 
