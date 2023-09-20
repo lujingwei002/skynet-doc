@@ -3170,3 +3170,157 @@ struct skynet_module {
     ```
 
     
+
+## skynet_timer
+
+### 源码分析
+
+- 系统启动时间
+
+  ```c
+  static uint64_t
+  gettime() {
+  	uint64_t t;
+  	struct timespec ti;
+  	clock_gettime(CLOCK_MONOTONIC, &ti);
+  	t = (uint64_t)ti.tv_sec * 100;
+  	t += ti.tv_nsec / 10000000;
+  	return t;
+  }
+  // 获取系统启动时间，精度是1/100秒，修改系统时间对它没影响，主要用来算相对时间。
+  ```
+
+  
+
+- 算法
+
+  - 将`expire`按不同精度分段，每段放在不同数组中，当前时间不断加1
+    - 每次加1时检查当前时间有没有计时器
+    - 每次加1时，如果进位，就上一段的计时器重新分组
+
+  - 将`expire`和`current_time`比较，将不同精度的`expire`放在不同数组中
+
+  - | 6位  | 6位  | 6位  | 6位  | 8位      |
+    | ---- | ---- | ---- | ---- | -------- |
+    | t[3] | t[2] | t[1] | t[0] | 放在near |
+
+    ```c
+    #define TIME_NEAR_SHIFT 8
+    #define TIME_NEAR (1 << TIME_NEAR_SHIFT)
+    #define TIME_LEVEL_SHIFT 6
+    #define TIME_LEVEL (1 << TIME_LEVEL_SHIFT)
+    #define TIME_NEAR_MASK (TIME_NEAR-1)
+    #define TIME_LEVEL_MASK (TIME_LEVEL-1)
+    
+    struct timer {
+    	struct link_list near[TIME_NEAR];
+    	struct link_list t[4][TIME_LEVEL];
+    	struct spinlock lock;
+    	uint32_t time;
+    	uint32_t starttime;
+    	uint64_t current;
+    	uint64_t current_point;
+    };
+    
+    static void
+    add_node(struct timer *T,struct timer_node *node) {
+    	uint32_t time=node->expire;
+    	uint32_t current_time=T->time;
+    	
+    	if ((time|TIME_NEAR_MASK)==(current_time|TIME_NEAR_MASK)) {
+    		link(&T->near[time&TIME_NEAR_MASK],node);
+    	} else {
+    		int i;
+    		uint32_t mask=TIME_NEAR << TIME_LEVEL_SHIFT;
+    		for (i=0;i<3;i++) {
+    			if ((time|(mask-1))==(current_time|(mask-1))) {
+    				break;
+    			}
+    			mask <<= TIME_LEVEL_SHIFT;
+    		}
+    		link(&T->t[i][((time>>(TIME_NEAR_SHIFT + i*TIME_LEVEL_SHIFT)) & TIME_LEVEL_MASK)],node);	
+    	}
+    }
+    
+    ```
+
+  - 执行当前时间的计时器
+
+    ```c
+    static inline void
+    timer_execute(struct timer *T) {
+    	int idx = T->time & TIME_NEAR_MASK;
+    	
+    	while (T->near[idx].head.next) {
+    		struct timer_node *current = link_clear(&T->near[idx]);
+    		SPIN_UNLOCK(T);
+    		// dispatch_list don't need lock T
+    		dispatch_list(current);
+    		SPIN_LOCK(T);
+    	}
+    }
+    ```
+
+  - 重新分段
+
+    ```c
+    static void
+    move_list(struct timer *T, int level, int idx) {
+    	struct timer_node *current = link_clear(&T->t[level][idx]);
+    	while (current) {
+    		struct timer_node *temp=current->next;
+    		add_node(T,current);
+    		current=temp;
+    	}
+    }
+    
+    static void
+    timer_shift(struct timer *T) {
+    	int mask = TIME_NEAR;
+    	uint32_t ct = ++T->time;
+    	if (ct == 0) {
+    		move_list(T, 3, 0);
+    	} else {
+    		uint32_t time = ct >> TIME_NEAR_SHIFT;
+    		int i=0;
+    
+    		while ((ct & (mask-1))==0) {//如果进位
+    			int idx=time & TIME_LEVEL_MASK;
+    			if (idx!=0) {
+    				move_list(T, i, idx);//重新分过段
+    				break;				
+    			}
+    			mask <<= TIME_LEVEL_SHIFT;
+    			time >>= TIME_LEVEL_SHIFT;
+    			++i;
+    		}
+    	}
+    }
+    ```
+
+    
+
+- afaf
+
+
+
+
+
+## skynet_handle
+
+### use case
+
+- [handle](#handle)的低24位保存句柄id,高8位保存harbor_id
+- 用hash保存[handle](#handle)和[skynet_context](#skynet-src.skynet_server.skynet_context)的关系
+  - 不是用拉链法, hash后，往后找一个空槽，如果没找到，就2倍扩展，然后重新hash之前的元素，初始是大小是4
+
+- 保存name和[handle](#handle)的关系
+  - 用数组保存，查找时用二分法
+  - 数组每次扩展时x2, 初始容量是2
+
+
+
+## socket_server
+
+### 源码分析
+
