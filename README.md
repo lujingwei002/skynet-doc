@@ -3389,15 +3389,15 @@ struct skynet_module {
 
 -  
 
-- | -              | -           | -    |
-  | -------------- | ----------- | ---- |
-  | SOCKET_DATA    |             |      |
-  | SOCKET_CLOSE   |             |      |
-  | SOCKET_OPEN    | SOCKET_DATA |      |
-  | SOCKET_ERR     |             |      |
-  | SOCKET_ACCEPT  |             |      |
-  | SOCKET_UDP     |             |      |
-  | SOCKET_WARNING |             |      |
+- | -              | -       | -                                                   |
+  | -------------- | ------- | --------------------------------------------------- |
+  | SOCKET_DATA    |         |                                                     |
+  | SOCKET_CLOSE   |         | ""                                                  |
+  | SOCKET_OPEN    | padding | NULL\|"transfer"\|"start"\|"地址"\|"listen"\|"bind" |
+  | SOCKET_ERR     | padding |                                                     |
+  | SOCKET_ACCEPT  | padding |                                                     |
+  | SOCKET_UDP     |         |                                                     |
+  | SOCKET_WARNING |         |                                                     |
 
 - 
 
@@ -3611,55 +3611,4 @@ void memory_info_dump(const char* opts)
 - 读取解析配置文件
 
 - 设置环境变量
-
-
-
-## skynet_server
-
-### use case
-
-- skynet_send将数据发送到目标服务，将数据的拥有权转移给目标服务，目标服务有责任释放内存
-  - 如果发送失败, skynet_send时就马上释放内存
-
-### export
-
-#### skynet_context_new
-
-skynet_context* skynet_context_new(const char* name, const char* parm)
-
-- 新建context
-
-#### skynet_context_grab
-
-#### skynet_context_reserve
-
-- 使context常驻内存
-
-#### skynet_context_release
-
-#### skynet_context_handle
-
-#### skynet_context_push
-
-#### skynet_context_send
-
-#### skynet_context_newsession
-
-#### skynet_context_message_dispatch
-
-#### skynet_context_total
-
-#### skynet_context_dispatchall
-
-#### skynet_context_endless
-
-#### skynet_globalinit
-
-#### skynet_globalexit
-
-#### skynet_initthread
-
-#### skynet_profile_enable
-
-
 
